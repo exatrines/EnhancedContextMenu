@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-05
+
+### Fixed
+
+- Align the panel with the drawn context menu
+- Scale panel text to the context menu's font size
+
 ## [0.1.0] - 2026-10-05
 
 ### Added
@@ -17,5 +24,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Settings for enabling the plugin, UI language, and the panel header
 - `/enhancedcontextmenu` toggles the settings window
 
-[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/exatrines/EnhancedContextMenu/releases/tag/v0.1.0

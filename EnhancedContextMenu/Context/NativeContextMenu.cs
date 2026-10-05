@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Dalamud.Game.NativeWrapper;
 using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Common.Math;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace EnhancedContextMenu.Context;
@@ -40,8 +41,50 @@ internal static unsafe class NativeContextMenu
         if (addon.IsNull || !addon.IsVisible)
             return false;
 
-        anchor = new MenuAnchor(addon.X, addon.Y, addon.X + addon.ScaledWidth);
+        float x = addon.X;
+        float y = addon.Y;
+        var right = x + addon.ScaledWidth;
+        var unit = (AtkUnitBase*)addon.Address;
+        var bounds = new Bounds();
+        unit->GetWindowBounds(&bounds);
+        if (bounds.Width > 0 && bounds.Height > 0)
+        {
+            x = bounds.Pos1.X;
+            y = bounds.Pos1.Y;
+            right = bounds.Pos2.X;
+        }
+
+        anchor = new MenuAnchor(x, y, right);
         return true;
+    }
+
+    internal static bool TryGetFontSize(out float size)
+    {
+        size = 0;
+        var handle = Find("ContextMenu");
+        if (handle.IsNull || !handle.IsVisible)
+            return false;
+
+        var addon = (AtkUnitBase*)handle.Address;
+        var addonScale = addon->Scale > 0 ? addon->Scale : 1f;
+        for (var i = 0; i < addon->UldManager.NodeListCount; i++)
+        {
+            var node = addon->UldManager.NodeList[i];
+            if (node == null || node->GetNodeType() != NodeType.Text)
+                continue;
+
+            var text = (AtkTextNode*)node;
+            if (text->FontSize == 0)
+                continue;
+
+            var px = text->FontSize * NodeScaleY(node) * addonScale;
+            if (px is < 8f or > 48f)
+                continue;
+            if (px > size)
+                size = px;
+        }
+
+        return size > 0;
     }
 
     internal static bool ParentStillThere(nint parent, ushort parentId)
@@ -99,6 +142,18 @@ internal static unsafe class NativeContextMenu
         var addon = Find(name);
         if (!addon.IsNull && addon.IsVisible)
             ((AtkUnitBase*)addon.Address)->FireCallbackInt(-2);
+    }
+
+    private static float NodeScaleY(AtkResNode* node)
+    {
+        var scale = 1f;
+        for (var i = 0; node != null && i < 16; i++, node = node->ParentNode)
+        {
+            if (node->ScaleY > 0)
+                scale *= node->ScaleY;
+        }
+
+        return scale;
     }
 
     private static AtkUnitBasePtr Find(string name) => PluginServices.GameGui.GetAddonByName(name, 1);

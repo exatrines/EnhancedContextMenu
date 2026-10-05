@@ -18,6 +18,7 @@ internal sealed class ActionsPanel
 
     private readonly Plugin _plugin;
     private Vector2 _lastSize = new(220, 80);
+    private float _fontScale = 1f;
 
     internal ActionsPanel(Plugin plugin)
     {
@@ -33,6 +34,11 @@ internal sealed class ActionsPanel
             return;
 
         var screen = ImGui.GetIO().DisplaySize;
+        var baseSize = ImGui.GetFontSize();
+        _fontScale = 1f;
+        if (baseSize > 0 && NativeContextMenu.TryGetFontSize(out var textSize))
+            _fontScale = textSize / baseSize;
+
         var gap = 6f;
         var placeLeft = anchor.Right + gap + _lastSize.X > screen.X;
         if (placeLeft)
@@ -41,15 +47,15 @@ internal sealed class ActionsPanel
             ImGui.SetNextWindowPos(new Vector2(anchor.Right + gap, anchor.Y), ImGuiCond.Always);
 
         var maxHeight = MathF.Max(96f, screen.Y - 12f);
-        ImGui.SetNextWindowSizeConstraints(new Vector2(160, 0), new Vector2(460, maxHeight));
+        ImGui.SetNextWindowSizeConstraints(new Vector2(160 * _fontScale, 0), new Vector2(460 * _fontScale, maxHeight));
         ImGui.SetNextWindowBgAlpha(1f);
 
         ImGui.PushStyleColor(ImGuiCol.WindowBg, PanelBg);
         ImGui.PushStyleColor(ImGuiCol.Border, PanelBorder);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 4f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(8, 6));
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 2));
+        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(8, 6) * _fontScale);
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 2) * _fontScale);
 
         var flags = ImGuiWindowFlags.NoTitleBar
             | ImGuiWindowFlags.NoResize
@@ -66,6 +72,7 @@ internal sealed class ActionsPanel
             began = true;
             if (visible)
             {
+                ImGui.SetWindowFontScale(_fontScale);
                 DrawLevel(level);
                 _lastSize = ImGui.GetWindowSize();
             }
@@ -101,36 +108,36 @@ internal sealed class ActionsPanel
         }
     }
 
-    private static float Measure(IMenuItem[] items)
+    private float Measure(IMenuItem[] items)
     {
-        var width = 200f;
+        var width = 200f * _fontScale;
         foreach (var item in items)
         {
             var text = item.Name?.TextValue ?? "";
-            var row = ImGui.CalcTextSize(text).X + 56f;
+            var row = ImGui.CalcTextSize(text).X + 56f * _fontScale;
             if (row > width)
                 width = row;
         }
 
-        return MathF.Min(width, 420f);
+        return MathF.Min(width, 420f * _fontScale);
     }
 
-    private static bool DrawBackRow(float width)
+    private bool DrawBackRow(float width)
     {
         var label = I18n.Get("panel.back");
-        var height = ImGui.GetTextLineHeight() + 6f;
+        var height = ImGui.GetTextLineHeight() + 6f * _fontScale;
         var pos = ImGui.GetCursorScreenPos();
         var clicked = ImGui.InvisibleButton("##ectx-back", new Vector2(width, height));
         if (ImGui.IsItemHovered())
             ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.GetColorU32(RowHover));
 
-        ImGui.GetWindowDrawList().AddText(pos + new Vector2(6, 3), ImGui.GetColorU32(ImGuiCol.Text), label);
+        DrawListText(pos + new Vector2(6, 3) * _fontScale, ImGui.GetColorU32(ImGuiCol.Text), label);
         return clicked;
     }
 
-    private static bool DrawEntryRow(int index, IMenuItem item, float width, bool selected)
+    private bool DrawEntryRow(int index, IMenuItem item, float width, bool selected)
     {
-        var height = ImGui.GetTextLineHeight() + 6f;
+        var height = ImGui.GetTextLineHeight() + 6f * _fontScale;
         var pos = ImGui.GetCursorScreenPos();
         var clicked = ImGui.InvisibleButton($"##ectx-item-{index}", new Vector2(width, height));
         if (selected)
@@ -146,7 +153,7 @@ internal sealed class ActionsPanel
         var style = new SeStringDrawParams
         {
             Opacity = enabled ? 1f : 0.45f,
-            ScreenOffset = pos + new Vector2(6, 3),
+            ScreenOffset = pos + new Vector2(6, 3) * _fontScale,
             TargetDrawList = ImGui.GetWindowDrawList(),
             Font = ImGui.GetFont(),
             FontSize = ImGui.GetFontSize(),
@@ -162,12 +169,17 @@ internal sealed class ActionsPanel
         return clicked && enabled;
     }
 
-    private static void DrawChevron(Vector2 min, Vector2 max, uint color)
+    private void DrawChevron(Vector2 min, Vector2 max, uint color)
     {
         var text = ">";
         var size = ImGui.CalcTextSize(text);
-        var pos = new Vector2(max.X - size.X - 8f, min.Y + (max.Y - min.Y - size.Y) * 0.5f);
-        ImGui.GetWindowDrawList().AddText(pos, color, text);
+        var pos = new Vector2(max.X - size.X - 8f * _fontScale, min.Y + (max.Y - min.Y - size.Y) * 0.5f);
+        DrawListText(pos, color, text);
+    }
+
+    private static void DrawListText(Vector2 pos, uint color, string text)
+    {
+        ImGui.GetWindowDrawList().AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos, color, text);
     }
 
     private static SeString DisplayName(IMenuItem item)
