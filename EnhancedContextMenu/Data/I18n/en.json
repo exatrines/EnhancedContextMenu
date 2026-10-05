@@ -1,0 +1,21 @@
+{
+  "command.help": "Toggle the plugin settings window.",
+  "entries.filter.all": "All",
+  "entries.filter.enable": "Enabled only",
+  "entries.filter.disable": "Disabled only",
+  "entries.auto": "Entries are added automatically when you open a menu.",
+  "entries.empty": "No entries yet.",
+  "entries.no_match": "No matches.",
+  "entries.unnamed": "(unnamed)",
+  "entries.unknown": "Unknown",
+  "settings.header.general": "General",
+  "settings.header.menu": "Menu",
+  "settings.label.ui_language": "UI language",
+  "settings.language.client": "Follow Dalamud",
+  "settings.language.en": "English",
+  "settings.language.ja": "Japanese",
+  "options.enabled": "Enable plugin",
+  "options.show_header": "Show header",
+  "panel.title": "Plugin actions",
+  "panel.back": "< Back"
+}

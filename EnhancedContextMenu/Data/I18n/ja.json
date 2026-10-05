@@ -1,0 +1,21 @@
+{
+  "command.help": "プラグイン設定画面の表示切替",
+  "entries.filter.all": "すべて",
+  "entries.filter.enable": "有効のみ",
+  "entries.filter.disable": "無効のみ",
+  "entries.auto": "メニューを開くと、項目は自動で追加されます。",
+  "entries.empty": "まだありません。",
+  "entries.no_match": "一致する項目がありません。",
+  "entries.unnamed": "（名称なし）",
+  "entries.unknown": "不明",
+  "settings.header.general": "一般",
+  "settings.header.menu": "メニュー",
+  "settings.label.ui_language": "UI言語",
+  "settings.language.client": "Dalamudに合わせる",
+  "settings.language.en": "English",
+  "settings.language.ja": "日本語",
+  "options.enabled": "プラグインを有効化",
+  "options.show_header": "ヘッダを表示",
+  "panel.title": "プラグイン項目",
+  "panel.back": "< 戻る"
+}

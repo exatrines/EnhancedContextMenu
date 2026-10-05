@@ -1,0 +1,133 @@
+using Dalamud.Configuration;
+using Dalamud.Game.Gui.ContextMenu;
+using EnhancedContextMenu.Context;
+
+namespace EnhancedContextMenu;
+
+/// <summary>Persisted plugin settings.</summary>
+[Serializable]
+public sealed class Configuration : IPluginConfiguration
+{
+    public int Version { get; set; } = 1;
+
+    public bool Enabled { get; set; } = true;
+
+    public bool ShowHeader { get; set; } = true;
+
+    public string Language { get; set; } = "dalamud";
+
+    public List<MenuEntryRecord> Entries { get; set; } = [];
+
+    public MirageColorSettings? ThemeColors { get; set; }
+
+    [NonSerialized]
+    private IDalamudPluginInterface? _pluginInterface;
+
+    [NonSerialized]
+    private object? _gate;
+
+    public void Initialize(IDalamudPluginInterface pluginInterface)
+    {
+        _pluginInterface = pluginInterface;
+        Entries ??= [];
+        if (Language is not ("dalamud" or "en" or "ja"))
+            Language = "dalamud";
+        if (Entries.RemoveAll(entry => string.IsNullOrEmpty(entry.Callback)) > 0)
+            Save();
+        _gate ??= new object();
+    }
+
+    public void Save() => _pluginInterface?.SavePluginConfig(this);
+
+    internal IMenuItem[] SelectVisible(ContextMenuType type, IReadOnlyList<IMenuItem> items)
+    {
+        lock (Gate)
+        {
+            Remember(type, items);
+            return items
+                .Where(item => !IsHidden(type, item))
+                .OrderBy(item => item.Priority)
+                .ToArray();
+        }
+    }
+
+    internal MenuEntryRecord[] Snapshot()
+    {
+        lock (Gate)
+            return Entries.ToArray();
+    }
+
+    internal void SetShown(MenuEntryRecord sample, bool shown)
+    {
+        lock (Gate)
+        {
+            var entry = Find(sample.MenuType, sample.Callback, sample.Name);
+            if (entry == null || entry.Hidden == !shown)
+                return;
+
+            entry.Hidden = !shown;
+            Save();
+        }
+    }
+
+    private object Gate => _gate ??= new object();
+
+    private void Remember(ContextMenuType type, IReadOnlyList<IMenuItem> items)
+    {
+        var changed = false;
+        foreach (var item in items)
+        {
+            var menuType = (int)type;
+            var callback = MenuEntryKey.Callback(item);
+            var name = MenuEntryKey.Name(item);
+            var source = MenuEntryKey.Source(item);
+            var existing = Find(menuType, callback, name);
+            if (existing == null)
+            {
+                if (Entries.Count >= MenuEntryKey.MaxEntries)
+                    continue;
+
+                Entries.Add(new MenuEntryRecord
+                {
+                    MenuType = menuType,
+                    Callback = callback,
+                    Name = name,
+                    Source = source,
+                });
+                changed = true;
+                continue;
+            }
+
+            if (existing.Source == source)
+                continue;
+
+            existing.Source = source;
+            changed = true;
+        }
+
+        if (changed)
+            Save();
+    }
+
+    private bool IsHidden(ContextMenuType type, IMenuItem item) =>
+        Find((int)type, MenuEntryKey.Callback(item), MenuEntryKey.Name(item)) is { Hidden: true };
+
+    private MenuEntryRecord? Find(int menuType, string callback, string name) =>
+        Entries.FirstOrDefault(entry =>
+            entry.MenuType == menuType && entry.Callback == callback && entry.Name == name);
+}
+
+/// <summary>One discovered context menu entry. Callbacks are not stored.</summary>
+[Serializable]
+public sealed class MenuEntryRecord
+{
+    public int MenuType { get; set; }
+
+    public string Callback { get; set; } = "";
+
+    public string Name { get; set; } = "";
+
+    public string Source { get; set; } = "";
+
+    public bool Hidden { get; set; }
+}
