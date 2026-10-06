@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-07
+
+### Added
+
+- Plugin page links for GitHub, Discord, and Support
+
 ## [0.3.1] - 2026-10-06
 
 ### Fixed
@@ -55,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Settings for enabling the plugin, UI language, and the panel header
 - `/enhancedcontextmenu` toggles the settings window
 
-[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.3.1...v1.0.0
 [0.3.1]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.1...v0.2.0
