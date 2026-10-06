@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-06
+
+### Added
+
+- Overlay colors for the background, background (active), text, text (active), header text, and border. Each color can be reset
+- Option to override text colors set by other plugins. Those colors are used unless the option is on
+- Gamepad option to move through nested menus with left and right. Confirm still opens a submenu
+- The back row can be selected with the gamepad. A nested menu starts on that row
+
+### Changed
+
+- X and Y offsets share one row and one reset
+
 ## [0.2.0] - 2026-10-06
 
 ### Added
@@ -36,7 +49,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Settings for enabling the plugin, UI language, and the panel header
 - `/enhancedcontextmenu` toggles the settings window
 
-[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/exatrines/EnhancedContextMenu/releases/tag/v0.1.0

@@ -62,10 +62,12 @@ internal sealed class MenuSession
 
     internal MenuLevel Current => _levels.Peek();
 
+    internal void Move(int direction) => Current.Move(direction, Depth > 1);
+
     internal void Push(string title, IMenuItem[] items)
     {
         var level = new MenuLevel(title, items);
-        level.Selected = FirstEnabled(items);
+        level.Selected = _levels.Count > 0 ? MenuLevel.BackRow : FirstEnabled(items);
         _levels.Push(level);
     }
 
@@ -99,28 +101,38 @@ internal sealed class MenuLevel
 
     internal IMenuItem[] Items { get; }
 
+    internal const int BackRow = -1;
+
     internal int Selected { get; set; }
 
     internal static bool CanRun(IMenuItem item) => item.IsEnabled && item.OnClicked != null;
 
-    internal void Move(int direction)
+    internal void Move(int direction, bool includeBack)
     {
-        if (Items.Length == 0 || direction == 0)
+        if (direction == 0)
             return;
 
-        for (var step = 1; step <= Items.Length; step++)
+        var choices = new List<int>();
+        if (includeBack)
+            choices.Add(BackRow);
+        for (var i = 0; i < Items.Length; i++)
         {
-            var index = Selected + (direction * step);
-            index %= Items.Length;
-            if (index < 0)
-                index += Items.Length;
-
-            if (!CanRun(Items[index]))
-                continue;
-
-            Selected = index;
-            return;
+            if (CanRun(Items[i]))
+                choices.Add(i);
         }
+
+        if (choices.Count == 0)
+            return;
+
+        var at = choices.IndexOf(Selected);
+        if (at < 0)
+            at = 0;
+
+        var slot = at + direction;
+        slot %= choices.Count;
+        if (slot < 0)
+            slot += choices.Count;
+        Selected = choices[slot];
     }
 }
 

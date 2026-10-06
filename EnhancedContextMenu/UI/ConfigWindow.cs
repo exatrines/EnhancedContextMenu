@@ -9,6 +9,7 @@ internal sealed class ConfigWindow : Window
 {
     private const string PageSettings = "settings";
     private const string PageEntries = "entries";
+    private const float FieldLabelWidth = 160f;
 
     private readonly Plugin _plugin;
     private string _selectedId = PageSettings;
@@ -90,6 +91,36 @@ internal sealed class ConfigWindow : Window
         DrawLanguage();
 
         MirageUi.SubHeader(I18n.Get("settings.header.menu"));
+        DrawDirections();
+        DrawOffset();
+        DrawFont();
+        DrawColors();
+
+        MirageUi.SubHeader(I18n.Get("settings.header.gamepad"));
+        var nest = C.PadHorizontalNest;
+        if (!MirageUi.Checkbox(I18n.Get("options.pad_nest_horizontal"), ref nest))
+            return;
+
+        C.PadHorizontalNest = nest;
+        C.Save();
+    }
+
+    private static void DrawColors()
+    {
+        DrawColor(I18n.Get("settings.color.background"), "color-bg", C.Background, Configuration.DefaultBackground, value => C.Background = value);
+        DrawColor(I18n.Get("settings.color.background_active"), "color-bg-active", C.BackgroundActive, Configuration.DefaultBackgroundActive, value => C.BackgroundActive = value);
+        DrawColor(I18n.Get("settings.color.text"), "color-text", C.Text, Configuration.DefaultText, value => C.Text = value);
+        DrawColor(I18n.Get("settings.color.text_active"), "color-text-active", C.TextActive, Configuration.DefaultTextActive, value => C.TextActive = value);
+
+        var overrideColor = C.OverridePluginTextColor;
+        if (MirageUi.Checkbox(I18n.Get("settings.color.override"), ref overrideColor))
+        {
+            C.OverridePluginTextColor = overrideColor;
+            C.Save();
+        }
+
+        DrawColor(I18n.Get("settings.color.border"), "color-border", C.Border, Configuration.DefaultBorder, value => C.Border = value);
+
         var showHeader = C.ShowHeader;
         if (MirageUi.Checkbox(I18n.Get("options.show_header"), ref showHeader))
         {
@@ -97,24 +128,55 @@ internal sealed class ConfigWindow : Window
             C.Save();
         }
 
-        DrawDirections();
-        DrawOffset();
-        DrawFont();
+        using (MirageUi.DisabledIf(!C.ShowHeader))
+            DrawColor(I18n.Get("settings.color.header"), "color-header", C.HeaderText, Configuration.DefaultHeaderText, value => C.HeaderText = value);
+    }
+
+    private static void DrawColor(string label, string id, Vector4 color, Vector4 fallback, Action<Vector4> set)
+    {
+        Label(label);
+        var changed = MirageUi.ColorEdit4("", ref color, id: id, width: FieldWidth(1));
+        if (Undo(id))
+        {
+            if (color != fallback)
+            {
+                set(fallback);
+                C.Save();
+            }
+
+            return;
+        }
+
+        if (!changed)
+            return;
+
+        set(color);
+        C.Save();
     }
 
     private static void DrawOffset()
     {
-        var reset = I18n.Get("settings.font.reset_scale");
+        Label(I18n.Get("settings.label.offset"));
+        var slider = FieldWidth(2);
+        var gap = ImGui.GetStyle().ItemInnerSpacing.X;
         var x = (float)C.OffsetX;
-        if (DrawFontSlider(
-                I18n.Get("settings.label.offset_x"),
-                "offset-x",
-                ref x,
-                -400f,
-                400f,
-                "%.0f",
-                reset,
-                out var resetX))
+        var y = (float)C.OffsetY;
+        var changedX = MirageUi.SliderFloat("", ref x, -400f, 400f, "X: %.0f", id: "offset-x", width: slider);
+        ImGui.SameLine(0f, gap);
+        var changedY = MirageUi.SliderFloat("", ref y, -400f, 400f, "Y: %.0f", id: "offset-y", width: slider);
+        if (Undo("offset"))
+        {
+            if (C.OffsetX != 0 || C.OffsetY != 0)
+            {
+                C.OffsetX = 0;
+                C.OffsetY = 0;
+                C.Save();
+            }
+
+            return;
+        }
+
+        if (changedX)
         {
             var nextX = (int)MathF.Round(x);
             if (C.OffsetX != nextX)
@@ -124,44 +186,21 @@ internal sealed class ConfigWindow : Window
             }
         }
 
-        if (resetX && C.OffsetX != 0)
-        {
-            C.OffsetX = 0;
-            C.Save();
-        }
+        if (!changedY)
+            return;
 
-        var y = (float)C.OffsetY;
-        if (DrawFontSlider(
-                I18n.Get("settings.label.offset_y"),
-                "offset-y",
-                ref y,
-                -400f,
-                400f,
-                "%.0f",
-                reset,
-                out var resetY))
-        {
-            var nextY = (int)MathF.Round(y);
-            if (C.OffsetY != nextY)
-            {
-                C.OffsetY = nextY;
-                C.Save();
-            }
-        }
+        var nextY = (int)MathF.Round(y);
+        if (C.OffsetY == nextY)
+            return;
 
-        if (resetY && C.OffsetY != 0)
-        {
-            C.OffsetY = 0;
-            C.Save();
-        }
+        C.OffsetY = nextY;
+        C.Save();
     }
 
     private static void DrawDirections()
     {
         var current = (int)C.Direction;
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(I18n.Get("settings.label.direction"));
-        ImGui.SameLine(160f);
+        Label(I18n.Get("settings.label.direction"));
         var changed = Radio("dir-right", "settings.offset.right", ref current, (int)PanelDirection.Right);
         ImGui.SameLine();
         changed |= Radio("dir-left", "settings.offset.left", ref current, (int)PanelDirection.Left);
@@ -246,23 +285,35 @@ internal sealed class ConfigWindow : Window
         string resetTooltip,
         out bool reset)
     {
-        const float labelWidth = 160f;
+        Label(label);
+        var changed = MirageUi.SliderFloat("", ref value, min, max, format, id: id, width: FieldWidth(1));
+        reset = Undo(id, resetTooltip);
+        return changed;
+    }
+
+    private static void Label(string text)
+    {
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(text);
+        ImGui.SameLine(FieldLabelWidth);
+    }
+
+    private static float FieldWidth(int fields, int buttons = 1)
+    {
         var gap = ImGui.GetStyle().ItemInnerSpacing.X;
         var button = ImGui.GetFrameHeight();
+        var gaps = Math.Max(0, fields + buttons - 1);
+        return MathF.Max(40f, (ImGui.GetContentRegionAvail().X - button * buttons - gap * gaps) / fields);
+    }
 
-        ImGui.AlignTextToFramePadding();
-        ImGui.TextUnformatted(label);
-        ImGui.SameLine(labelWidth);
-
-        var sliderWidth = MathF.Max(40f, ImGui.GetContentRegionAvail().X - button - gap);
-        var changed = MirageUi.SliderFloat("", ref value, min, max, format, id: id, width: sliderWidth);
-        ImGui.SameLine(0f, gap);
-        reset = MirageUi.IconButton(
+    private static bool Undo(string id, string? tooltip = null)
+    {
+        ImGui.SameLine(0f, ImGui.GetStyle().ItemInnerSpacing.X);
+        return MirageUi.IconButton(
             FontAwesomeIcon.Undo,
             id: id + "-reset",
-            size: new Vector2(button),
-            tooltip: resetTooltip);
-        return changed;
+            size: new Vector2(ImGui.GetFrameHeight()),
+            tooltip: tooltip ?? I18n.Get("settings.font.reset_scale"));
     }
 
     private void DrawLanguage()

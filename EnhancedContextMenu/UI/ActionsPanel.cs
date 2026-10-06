@@ -1,6 +1,8 @@
 using Dalamud.Game.Gui.ContextMenu;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
+using Dalamud.Game.Text.SeStringHandling.Payloads;
+using Dalamud.Interface;
 using Dalamud.Interface.ImGuiSeStringRenderer;
 using Dalamud.Interface.Utility;
 using EnhancedContextMenu.Context;
@@ -10,12 +12,6 @@ namespace EnhancedContextMenu.UI;
 /// <summary>Side panel for plugin context entries. It follows the open game menu.</summary>
 internal sealed class ActionsPanel
 {
-    private static readonly Vector4 PanelBg = new(87f / 255f, 85f / 255f, 87f / 255f, 230f / 255f);
-    private static readonly Vector4 PanelBorder = new(120f / 255f, 120f / 255f, 120f / 255f, 0.8f);
-    private static readonly Vector4 HeaderText = new(0.72f, 0.72f, 0.72f, 1f);
-    private static readonly Vector4 RowHover = new(1f, 1f, 1f, 0.12f);
-    private static readonly Vector4 RowSelected = new(1f, 1f, 1f, 0.22f);
-
     private readonly Plugin _plugin;
     private Vector2 _lastSize = new(220, 80);
     private float _fontScale = 1f;
@@ -51,10 +47,9 @@ internal sealed class ActionsPanel
 
         var maxHeight = MathF.Max(96f, screen.Y - 12f);
         ImGui.SetNextWindowSizeConstraints(new Vector2(160 * _fontScale, 0), new Vector2(460 * _fontScale, maxHeight));
-        ImGui.SetNextWindowBgAlpha(1f);
 
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, PanelBg);
-        ImGui.PushStyleColor(ImGuiCol.Border, PanelBorder);
+        ImGui.PushStyleColor(ImGuiCol.WindowBg, C.Background);
+        ImGui.PushStyleColor(ImGuiCol.Border, C.Border);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 4f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1f);
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(8, 6) * _fontScale);
@@ -139,15 +134,10 @@ internal sealed class ActionsPanel
     private void DrawLevel(PanelLevel level)
     {
         if (C.ShowHeader)
-        {
-            ImGui.PushStyleColor(ImGuiCol.Text, HeaderText);
-            ImGui.TextUnformatted(string.IsNullOrWhiteSpace(level.Title) ? I18n.Get("panel.title") : level.Title);
-            ImGui.PopStyleColor();
-            ImGui.Separator();
-        }
+            DrawHeader(string.IsNullOrWhiteSpace(level.Title) ? I18n.Get("panel.title") : level.Title);
 
         var width = Measure(level.Items);
-        if (level.Nested && DrawBackRow(width))
+        if (level.Nested && DrawBackRow(width, level.Focused && level.Selected == MenuLevel.BackRow))
             _plugin.Back();
         for (var i = 0; i < level.Items.Length; i++)
         {
@@ -155,6 +145,14 @@ internal sealed class ActionsPanel
             if (DrawEntryRow(i, item, width, level.Focused && i == level.Selected))
                 _plugin.Execute(i);
         }
+    }
+
+    private static void DrawHeader(string title)
+    {
+        ImGui.PushStyleColor(ImGuiCol.Text, C.HeaderText);
+        ImGui.TextUnformatted(title);
+        ImGui.PopStyleColor();
+        ImGui.Separator();
     }
 
     private float Measure(IMenuItem[] items)
@@ -171,16 +169,19 @@ internal sealed class ActionsPanel
         return MathF.Min(width, 420f * _fontScale);
     }
 
-    private bool DrawBackRow(float width)
+    private bool DrawBackRow(float width, bool selected)
     {
         var label = I18n.Get("panel.back");
         var height = ImGui.GetTextLineHeight() + 6f * _fontScale;
         var pos = ImGui.GetCursorScreenPos();
         var clicked = ImGui.InvisibleButton("##ectx-back", new Vector2(width, height));
-        if (ImGui.IsItemHovered())
-            ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.GetColorU32(RowHover));
+        if (selected)
+            ImGui.SetScrollHereY(0.5f);
+        var active = ImGui.IsItemHovered() || selected;
+        if (active)
+            ImGui.GetWindowDrawList().AddRectFilled(ImGui.GetItemRectMin(), ImGui.GetItemRectMax(), ImGui.GetColorU32(C.BackgroundActive));
 
-        DrawListText(pos + new Vector2(6, 3) * _fontScale, ImGui.GetColorU32(ImGuiCol.Text), label);
+        DrawListText(pos + new Vector2(6, 3) * _fontScale, Packed(active ? C.TextActive : C.Text), label);
         return clicked;
     }
 
@@ -196,12 +197,15 @@ internal sealed class ActionsPanel
         var max = ImGui.GetItemRectMax();
         var hovered = ImGui.IsItemHovered();
         var enabled = MenuLevel.CanRun(item);
-        if ((hovered || selected) && enabled)
-            ImGui.GetWindowDrawList().AddRectFilled(min, max, ImGui.GetColorU32(selected ? RowSelected : RowHover));
+        var active = (hovered || selected) && enabled;
+        if (active)
+            ImGui.GetWindowDrawList().AddRectFilled(min, max, ImGui.GetColorU32(C.BackgroundActive));
 
+        var text = active ? C.TextActive : C.Text;
         var style = new SeStringDrawParams
         {
             Opacity = enabled ? 1f : 0.45f,
+            Color = ColorHelpers.RgbaVector4ToUint(text),
             ScreenOffset = pos + new Vector2(6, 3) * _fontScale,
             TargetDrawList = ImGui.GetWindowDrawList(),
             Font = ImGui.GetFont(),
@@ -213,7 +217,7 @@ internal sealed class ActionsPanel
         ImGui.SetCursorPos(next);
 
         if (item.IsSubmenu)
-            DrawChevron(min, max, ImGui.GetColorU32(ImGuiCol.Text, enabled ? 1f : 0.45f));
+            DrawChevron(min, max, Packed(text, enabled ? 1f : 0.45f));
 
         return clicked && enabled;
     }
@@ -231,6 +235,9 @@ internal sealed class ActionsPanel
         ImGui.GetWindowDrawList().AddText(ImGui.GetFont(), ImGui.GetFontSize(), pos, color, text);
     }
 
+    private static uint Packed(Vector4 color, float opacity = 1f) =>
+        ImGui.GetColorU32(new Vector4(color.X, color.Y, color.Z, color.W * opacity));
+
     private static SeString DisplayName(IMenuItem item)
     {
         if (!item.Prefix.HasValue)
@@ -240,13 +247,28 @@ internal sealed class ActionsPanel
         }
 
         var name = item.Name ?? new SeString();
+        if (C.OverridePluginTextColor)
+            name = WithoutForeground(name);
+
         // Values outside SeIconChar are strip markers. The game menu removes them before display.
         if (item.Prefix is not { } prefix || !Enum.IsDefined(prefix))
             return name;
 
-        return new SeStringBuilder()
-            .AddUiForeground($"{prefix.ToIconString()} ", item.PrefixColor)
-            .Append(name)
-            .Build();
+        var icon = $"{prefix.ToIconString()} ";
+        var builder = new SeStringBuilder();
+        if (C.OverridePluginTextColor)
+            builder.AddText(icon);
+        else
+            builder.AddUiForeground(icon, item.PrefixColor);
+
+        return builder.Append(name).Build();
+    }
+
+    private static SeString WithoutForeground(SeString source)
+    {
+        if (!source.Payloads.Any(payload => payload is UIForegroundPayload))
+            return source;
+
+        return new SeString(source.Payloads.Where(payload => payload is not UIForegroundPayload).ToList());
     }
 }

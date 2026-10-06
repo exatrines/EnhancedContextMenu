@@ -233,6 +233,9 @@ internal sealed unsafe class PadInput : IDisposable
             case InputId.DOWN:
                 _plugin.MovePad(1);
                 break;
+            case InputId.RIGHT:
+                _plugin.OpenNestPad();
+                break;
             case InputId.OK:
             case InputId.PAD_OK:
                 _plugin.ConfirmPad();

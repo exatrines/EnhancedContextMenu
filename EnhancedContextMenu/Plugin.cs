@@ -326,8 +326,31 @@ public sealed class Plugin : IDalamudPlugin
             if (_session is not { Focused: true } session)
                 return;
 
-            session.Current.Move(direction);
+            session.Move(direction);
         }
+    }
+
+    internal void OpenNestPad()
+    {
+        if (!C.PadHorizontalNest)
+            return;
+
+        int index;
+        lock (_sessionGate)
+        {
+            if (_session is not { Focused: true } session)
+                return;
+
+            index = session.Current.Selected;
+            if (index < 0 || index >= session.Current.Items.Length)
+                return;
+
+            if (!session.Current.Items[index].IsSubmenu)
+                return;
+        }
+
+        Execute(index);
+        _pad?.Boundary();
     }
 
     internal void ConfirmPad()
@@ -339,6 +362,12 @@ public sealed class Plugin : IDalamudPlugin
                 return;
 
             index = session.Current.Selected;
+            if (index == MenuLevel.BackRow)
+            {
+                if (session.Depth > 1)
+                    session.Pop();
+                return;
+            }
         }
 
         Execute(index);

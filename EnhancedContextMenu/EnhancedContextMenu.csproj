@@ -4,7 +4,7 @@
 
     <PropertyGroup>
         <Authors>mirage, min</Authors>
-        <Version>0.2.0</Version>
+        <Version>0.3.0</Version>
         <Description>Moves Dalamud context menu entries into a side panel</Description>
         <PackageLicenseExpression>AGPL-3.0-or-later</PackageLicenseExpression>
     </PropertyGroup>

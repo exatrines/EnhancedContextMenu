@@ -8,11 +8,29 @@ namespace EnhancedContextMenu;
 [Serializable]
 public sealed class Configuration : IPluginConfiguration
 {
+    internal static readonly Vector4 DefaultBackground = new(87f / 255f, 85f / 255f, 87f / 255f, 230f / 255f);
+
+    internal static readonly Vector4 DefaultBackgroundActive = new(
+        (255f * 0.22f + 87f * 0.78f) / 255f,
+        (255f * 0.22f + 85f * 0.78f) / 255f,
+        (255f * 0.22f + 87f * 0.78f) / 255f,
+        1f);
+
+    internal static readonly Vector4 DefaultHeaderText = new(0.72f, 0.72f, 0.72f, 1f);
+
+    internal static readonly Vector4 DefaultBorder = new(120f / 255f, 120f / 255f, 120f / 255f, 0.8f);
+
+    internal static readonly Vector4 DefaultText = Vector4.One;
+
+    internal static readonly Vector4 DefaultTextActive = Vector4.One;
+
     public int Version { get; set; } = 1;
 
     public bool Enabled { get; set; } = true;
 
     public bool ShowHeader { get; set; } = true;
+
+    public bool PadHorizontalNest { get; set; }
 
     public int FontSizePx { get; set; } = 16;
 
@@ -23,6 +41,20 @@ public sealed class Configuration : IPluginConfiguration
     public int OffsetY { get; set; }
 
     public PanelDirection Direction { get; set; } = PanelDirection.Right;
+
+    public Vector4 Background { get; set; } = DefaultBackground;
+
+    public Vector4 BackgroundActive { get; set; } = DefaultBackgroundActive;
+
+    public Vector4 HeaderText { get; set; } = DefaultHeaderText;
+
+    public Vector4 Border { get; set; } = DefaultBorder;
+
+    public Vector4 Text { get; set; } = DefaultText;
+
+    public Vector4 TextActive { get; set; } = DefaultTextActive;
+
+    public bool OverridePluginTextColor { get; set; }
 
     public string Language { get; set; } = "dalamud";
 
@@ -48,12 +80,24 @@ public sealed class Configuration : IPluginConfiguration
         OffsetY = Math.Clamp(OffsetY, -400, 400);
         if (!Enum.IsDefined(Direction))
             Direction = PanelDirection.Right;
+        Background = ClampColor(Background);
+        BackgroundActive = ClampColor(BackgroundActive);
+        HeaderText = ClampColor(HeaderText);
+        Border = ClampColor(Border);
+        Text = ClampColor(Text);
+        TextActive = ClampColor(TextActive);
         if (Entries.RemoveAll(entry => string.IsNullOrEmpty(entry.Callback)) > 0)
             Save();
         _gate ??= new object();
     }
 
     public void Save() => _pluginInterface?.SavePluginConfig(this);
+
+    private static Vector4 ClampColor(Vector4 color) => new(
+        Math.Clamp(color.X, 0f, 1f),
+        Math.Clamp(color.Y, 0f, 1f),
+        Math.Clamp(color.Z, 0f, 1f),
+        Math.Clamp(color.W, 0f, 1f));
 
     internal IMenuItem[] SelectVisible(ContextMenuType type, IReadOnlyList<IMenuItem> items)
     {
