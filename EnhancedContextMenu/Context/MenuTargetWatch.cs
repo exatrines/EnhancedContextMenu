@@ -19,6 +19,10 @@ internal sealed unsafe class MenuTargetWatch
     private readonly nint _objectPointer;
     private readonly nint _itemPointer;
     private readonly byte[] _itemSnapshot;
+    private readonly byte[] _title;
+    private readonly uint _ownerAddon;
+    private readonly nint _updateChecker;
+    private readonly long _updateCheckerParam;
 
     private MenuTargetWatch(IMenuArgs args)
     {
@@ -34,6 +38,7 @@ internal sealed unsafe class MenuTargetWatch
             _itemPointer = (nint)agent->TargetInventorySlot;
             _itemSnapshot = Copy((void*)_itemPointer, sizeof(InventoryItem));
             _name = [];
+            _title = [];
             return;
         }
 
@@ -45,6 +50,10 @@ internal sealed unsafe class MenuTargetWatch
         _objectId = context->TargetObjectId;
         _world = context->TargetHomeWorldId;
         _name = context->TargetName.AsSpan().ToArray();
+        _title = context->ContextMenuTitle.AsSpan().ToArray();
+        _ownerAddon = context->OwnerAddon;
+        _updateChecker = (nint)context->UpdateChecker;
+        _updateCheckerParam = context->UpdateCheckerParam;
         _objectPointer = FindObject(_objectId);
     }
 
@@ -74,6 +83,10 @@ internal sealed unsafe class MenuTargetWatch
             && agent->TargetObjectId.Equals(_objectId)
             && agent->TargetHomeWorldId == _world
             && agent->TargetName.AsSpan().SequenceEqual(_name)
+            && agent->ContextMenuTitle.AsSpan().SequenceEqual(_title)
+            && agent->OwnerAddon == _ownerAddon
+            && (nint)agent->UpdateChecker == _updateChecker
+            && agent->UpdateCheckerParam == _updateCheckerParam
             && (_objectPointer == 0 || FindObject(agent->TargetObjectId) == _objectPointer);
     }
 
@@ -97,9 +110,7 @@ internal sealed unsafe class MenuTargetWatch
             return false;
 
         var agent = AgentContext.Instance();
-        return agent != null && (nint)agent == args.AgentPtr
-            && agent->TargetHomeWorldId > 0
-            && !agent->TargetName.AsSpan().IsEmpty;
+        return agent != null && (nint)agent == args.AgentPtr;
     }
 
     private static bool InventoryCanCapture(IMenuArgs args)
