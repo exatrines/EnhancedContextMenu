@@ -35,16 +35,19 @@ internal sealed class ActionsPanel
 
         var screen = ImGui.GetIO().DisplaySize;
         var baseSize = ImGui.GetFontSize();
-        _fontScale = 1f;
-        if (baseSize > 0 && NativeContextMenu.TryGetFontSize(out var textSize))
-            _fontScale = textSize / baseSize;
+        var target = Math.Clamp(C.FontSizePx, 12, 32) * Math.Clamp(C.FontScalePercent, 100, 300) / 100f;
+        _fontScale = baseSize > 0 ? target / baseSize : 1f;
 
         var gap = 6f;
-        var placeLeft = anchor.Right + gap + _lastSize.X > screen.X;
-        if (placeLeft)
-            ImGui.SetNextWindowPos(new Vector2(anchor.X - gap, anchor.Y), ImGuiCond.Always, new Vector2(1, 0));
-        else
-            ImGui.SetNextWindowPos(new Vector2(anchor.Right + gap, anchor.Y), ImGuiCond.Always);
+        var spot = Spot(anchor, C.Direction, gap);
+        if (!Fits(spot, screen))
+        {
+            var flipped = Spot(anchor, Opposite(C.Direction), gap);
+            if (Fits(flipped, screen))
+                spot = flipped;
+        }
+
+        ImGui.SetNextWindowPos(spot.Position, ImGuiCond.Always, spot.Pivot);
 
         var maxHeight = MathF.Max(96f, screen.Y - 12f);
         ImGui.SetNextWindowSizeConstraints(new Vector2(160 * _fontScale, 0), new Vector2(460 * _fontScale, maxHeight));
@@ -86,6 +89,52 @@ internal sealed class ActionsPanel
             ImGui.PopStyleColor(2);
         }
     }
+
+    private readonly record struct PanelSpot(Vector2 Position, Vector2 Pivot);
+
+    private static PanelSpot Spot(MenuAnchor anchor, PanelDirection direction, float gap)
+    {
+        var x = anchor.X + C.OffsetX;
+        var y = anchor.Y + C.OffsetY;
+        var pivot = Vector2.Zero;
+        switch (direction)
+        {
+            case PanelDirection.Left:
+                x = anchor.X - gap + C.OffsetX;
+                pivot = new Vector2(1f, 0f);
+                break;
+            case PanelDirection.Up:
+                y = anchor.Y - gap + C.OffsetY;
+                pivot = new Vector2(0f, 1f);
+                break;
+            case PanelDirection.Down:
+                y = anchor.Bottom + gap + C.OffsetY;
+                break;
+            default:
+                x = anchor.Right + gap + C.OffsetX;
+                break;
+        }
+
+        return new PanelSpot(new Vector2(x, y), pivot);
+    }
+
+    private bool Fits(PanelSpot spot, Vector2 screen)
+    {
+        var left = spot.Position.X - spot.Pivot.X * _lastSize.X;
+        var top = spot.Position.Y - spot.Pivot.Y * _lastSize.Y;
+        return left >= 0f
+            && top >= 0f
+            && left + _lastSize.X <= screen.X
+            && top + _lastSize.Y <= screen.Y;
+    }
+
+    private static PanelDirection Opposite(PanelDirection direction) => direction switch
+    {
+        PanelDirection.Left => PanelDirection.Right,
+        PanelDirection.Up => PanelDirection.Down,
+        PanelDirection.Down => PanelDirection.Up,
+        _ => PanelDirection.Left,
+    };
 
     private void DrawLevel(PanelLevel level)
     {

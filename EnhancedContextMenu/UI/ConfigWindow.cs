@@ -96,6 +96,173 @@ internal sealed class ConfigWindow : Window
             C.ShowHeader = showHeader;
             C.Save();
         }
+
+        DrawDirections();
+        DrawOffset();
+        DrawFont();
+    }
+
+    private static void DrawOffset()
+    {
+        var reset = I18n.Get("settings.font.reset_scale");
+        var x = (float)C.OffsetX;
+        if (DrawFontSlider(
+                I18n.Get("settings.label.offset_x"),
+                "offset-x",
+                ref x,
+                -400f,
+                400f,
+                "%.0f",
+                reset,
+                out var resetX))
+        {
+            var nextX = (int)MathF.Round(x);
+            if (C.OffsetX != nextX)
+            {
+                C.OffsetX = nextX;
+                C.Save();
+            }
+        }
+
+        if (resetX && C.OffsetX != 0)
+        {
+            C.OffsetX = 0;
+            C.Save();
+        }
+
+        var y = (float)C.OffsetY;
+        if (DrawFontSlider(
+                I18n.Get("settings.label.offset_y"),
+                "offset-y",
+                ref y,
+                -400f,
+                400f,
+                "%.0f",
+                reset,
+                out var resetY))
+        {
+            var nextY = (int)MathF.Round(y);
+            if (C.OffsetY != nextY)
+            {
+                C.OffsetY = nextY;
+                C.Save();
+            }
+        }
+
+        if (resetY && C.OffsetY != 0)
+        {
+            C.OffsetY = 0;
+            C.Save();
+        }
+    }
+
+    private static void DrawDirections()
+    {
+        var current = (int)C.Direction;
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(I18n.Get("settings.label.direction"));
+        ImGui.SameLine(160f);
+        var changed = Radio("dir-right", "settings.offset.right", ref current, (int)PanelDirection.Right);
+        ImGui.SameLine();
+        changed |= Radio("dir-left", "settings.offset.left", ref current, (int)PanelDirection.Left);
+        ImGui.SameLine();
+        changed |= Radio("dir-up", "settings.offset.up", ref current, (int)PanelDirection.Up);
+        ImGui.SameLine();
+        changed |= Radio("dir-down", "settings.offset.down", ref current, (int)PanelDirection.Down);
+        if (!changed || current == (int)C.Direction)
+            return;
+
+        C.Direction = (PanelDirection)current;
+        C.Save();
+    }
+
+    private static bool Radio(string id, string key, ref int current, int value) =>
+        MirageUi.Radio($"{I18n.Get(key)}##{id}", ref current, value);
+
+    private static void DrawFont()
+    {
+        var size = (float)C.FontSizePx;
+        if (DrawFontSlider(
+                I18n.Get("settings.label.text_size"),
+                "font-size",
+                ref size,
+                12f,
+                32f,
+                "%.0f px",
+                I18n.Get("settings.font.reset_size"),
+                out var resetSize))
+        {
+            var next = (int)MathF.Round(size);
+            if (C.FontSizePx != next)
+            {
+                C.FontSizePx = next;
+                C.Save();
+            }
+        }
+
+        if (resetSize)
+        {
+            var next = Math.Clamp((int)MathF.Round(ImGui.GetFontSize()), 12, 32);
+            if (C.FontSizePx != next)
+            {
+                C.FontSizePx = next;
+                C.Save();
+            }
+        }
+
+        var scale = (float)C.FontScalePercent;
+        if (DrawFontSlider(
+                I18n.Get("settings.label.font_scale"),
+                "font-scale",
+                ref scale,
+                100f,
+                300f,
+                "%.0f%%",
+                I18n.Get("settings.font.reset_scale"),
+                out var resetScale))
+        {
+            var next = (int)MathF.Round(scale);
+            if (C.FontScalePercent != next)
+            {
+                C.FontScalePercent = next;
+                C.Save();
+            }
+        }
+
+        if (!resetScale || C.FontScalePercent == 100)
+            return;
+
+        C.FontScalePercent = 100;
+        C.Save();
+    }
+
+    private static bool DrawFontSlider(
+        string label,
+        string id,
+        ref float value,
+        float min,
+        float max,
+        string format,
+        string resetTooltip,
+        out bool reset)
+    {
+        const float labelWidth = 160f;
+        var gap = ImGui.GetStyle().ItemInnerSpacing.X;
+        var button = ImGui.GetFrameHeight();
+
+        ImGui.AlignTextToFramePadding();
+        ImGui.TextUnformatted(label);
+        ImGui.SameLine(labelWidth);
+
+        var sliderWidth = MathF.Max(40f, ImGui.GetContentRegionAvail().X - button - gap);
+        var changed = MirageUi.SliderFloat("", ref value, min, max, format, id: id, width: sliderWidth);
+        ImGui.SameLine(0f, gap);
+        reset = MirageUi.IconButton(
+            FontAwesomeIcon.Undo,
+            id: id + "-reset",
+            size: new Vector2(button),
+            tooltip: resetTooltip);
+        return changed;
     }
 
     private void DrawLanguage()

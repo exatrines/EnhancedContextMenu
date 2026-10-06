@@ -14,6 +14,16 @@ public sealed class Configuration : IPluginConfiguration
 
     public bool ShowHeader { get; set; } = true;
 
+    public int FontSizePx { get; set; } = 16;
+
+    public int FontScalePercent { get; set; } = 100;
+
+    public int OffsetX { get; set; }
+
+    public int OffsetY { get; set; }
+
+    public PanelDirection Direction { get; set; } = PanelDirection.Right;
+
     public string Language { get; set; } = "dalamud";
 
     public List<MenuEntryRecord> Entries { get; set; } = [];
@@ -32,6 +42,12 @@ public sealed class Configuration : IPluginConfiguration
         Entries ??= [];
         if (Language is not ("dalamud" or "en" or "ja"))
             Language = "dalamud";
+        FontSizePx = Math.Clamp(FontSizePx, 12, 32);
+        FontScalePercent = Math.Clamp(FontScalePercent, 100, 300);
+        OffsetX = Math.Clamp(OffsetX, -400, 400);
+        OffsetY = Math.Clamp(OffsetY, -400, 400);
+        if (!Enum.IsDefined(Direction))
+            Direction = PanelDirection.Right;
         if (Entries.RemoveAll(entry => string.IsNullOrEmpty(entry.Callback)) > 0)
             Save();
         _gate ??= new object();
@@ -115,6 +131,15 @@ public sealed class Configuration : IPluginConfiguration
     private MenuEntryRecord? Find(int menuType, string callback, string name) =>
         Entries.FirstOrDefault(entry =>
             entry.MenuType == menuType && entry.Callback == callback && entry.Name == name);
+}
+
+/// <summary>Which side of the native menu the panel opens toward.</summary>
+public enum PanelDirection
+{
+    Right,
+    Left,
+    Up,
+    Down,
 }
 
 /// <summary>One discovered context menu entry. Callbacks are not stored.</summary>

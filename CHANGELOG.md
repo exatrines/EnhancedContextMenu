@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-06
+
+### Added
+
+- Choose the overlay side: right, left, up, or down. If it does not fit, the panel flips to the opposite side
+- X and Y offsets for the overlay
+- Font size and font scale for the overlay
+
+### Changed
+
+- Overlay text size comes from the font settings. It no longer follows the context menu font
+
 ## [0.1.1] - 2026-10-05
 
 ### Fixed
@@ -24,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Settings for enabling the plugin, UI language, and the panel header
 - `/enhancedcontextmenu` toggles the settings window
 
-[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/exatrines/EnhancedContextMenu/releases/tag/v0.1.0

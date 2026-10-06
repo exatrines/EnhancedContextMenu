@@ -6,7 +6,7 @@ using FFXIVClientStructs.FFXIV.Component.GUI;
 
 namespace EnhancedContextMenu.Context;
 
-internal readonly record struct MenuAnchor(float X, float Y, float Right);
+internal readonly record struct MenuAnchor(float X, float Y, float Right, float Bottom);
 
 /// <summary>Reads and closes the game context menu addon.</summary>
 internal static unsafe class NativeContextMenu
@@ -44,6 +44,7 @@ internal static unsafe class NativeContextMenu
         float x = addon.X;
         float y = addon.Y;
         var right = x + addon.ScaledWidth;
+        var bottom = y + addon.ScaledHeight;
         var unit = (AtkUnitBase*)addon.Address;
         var bounds = new Bounds();
         unit->GetWindowBounds(&bounds);
@@ -52,39 +53,11 @@ internal static unsafe class NativeContextMenu
             x = bounds.Pos1.X;
             y = bounds.Pos1.Y;
             right = bounds.Pos2.X;
+            bottom = bounds.Pos2.Y;
         }
 
-        anchor = new MenuAnchor(x, y, right);
+        anchor = new MenuAnchor(x, y, right, bottom);
         return true;
-    }
-
-    internal static bool TryGetFontSize(out float size)
-    {
-        size = 0;
-        var handle = Find("ContextMenu");
-        if (handle.IsNull || !handle.IsVisible)
-            return false;
-
-        var addon = (AtkUnitBase*)handle.Address;
-        var addonScale = addon->Scale > 0 ? addon->Scale : 1f;
-        for (var i = 0; i < addon->UldManager.NodeListCount; i++)
-        {
-            var node = addon->UldManager.NodeList[i];
-            if (node == null || node->GetNodeType() != NodeType.Text)
-                continue;
-
-            var text = (AtkTextNode*)node;
-            if (text->FontSize == 0)
-                continue;
-
-            var px = text->FontSize * NodeScaleY(node) * addonScale;
-            if (px is < 8f or > 48f)
-                continue;
-            if (px > size)
-                size = px;
-        }
-
-        return size > 0;
     }
 
     internal static bool ParentStillThere(nint parent, ushort parentId)
@@ -142,18 +115,6 @@ internal static unsafe class NativeContextMenu
         var addon = Find(name);
         if (!addon.IsNull && addon.IsVisible)
             ((AtkUnitBase*)addon.Address)->FireCallbackInt(-2);
-    }
-
-    private static float NodeScaleY(AtkResNode* node)
-    {
-        var scale = 1f;
-        for (var i = 0; node != null && i < 16; i++, node = node->ParentNode)
-        {
-            if (node->ScaleY > 0)
-                scale *= node->ScaleY;
-        }
-
-        return scale;
     }
 
     private static AtkUnitBasePtr Find(string name) => PluginServices.GameGui.GetAddonByName(name, 1);
