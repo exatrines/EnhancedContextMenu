@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-07
+
+### Added
+
+- Context menu entries added by OmenTools (used by plugins such as Daily Routines) are moved to the side panel when they sit at the end of the menu
+- A nested OmenTools menu opens on the panel. The gamepad can move through those entries and confirm them
+- A menu whose OmenTools entry is not at the end stays on the game menu
+
 ## [1.0.0] - 2026-10-07
 
 ### Added
@@ -61,7 +69,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Settings for enabling the plugin, UI language, and the panel header
 - `/enhancedcontextmenu` toggles the settings window
 
-[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/exatrines/EnhancedContextMenu/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.3.1...v1.0.0
 [0.3.1]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/exatrines/EnhancedContextMenu/compare/v0.2.0...v0.3.0

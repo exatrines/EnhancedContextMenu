@@ -62,13 +62,19 @@ internal sealed class MenuSession
 
     internal MenuLevel Current => _levels.Peek();
 
-    internal void Move(int direction) => Current.Move(direction, Depth > 1);
+    internal void Move(int direction, int extra = 0) => Current.Move(direction, Depth > 1, extra);
 
     internal void Push(string title, IMenuItem[] items)
     {
         var level = new MenuLevel(title, items);
         level.Selected = _levels.Count > 0 ? MenuLevel.BackRow : FirstEnabled(items);
         _levels.Push(level);
+    }
+
+    internal void Pop()
+    {
+        if (_levels.Count > 1)
+            _levels.Pop();
     }
 
     private static int FirstEnabled(IMenuItem[] items)
@@ -81,16 +87,12 @@ internal sealed class MenuSession
 
         return 0;
     }
-
-    internal void Pop()
-    {
-        if (_levels.Count > 1)
-            _levels.Pop();
-    }
 }
 
 internal sealed class MenuLevel
 {
+    internal const int BackRow = -1;
+
     internal MenuLevel(string title, IMenuItem[] items)
     {
         Title = title;
@@ -101,13 +103,11 @@ internal sealed class MenuLevel
 
     internal IMenuItem[] Items { get; }
 
-    internal const int BackRow = -1;
-
     internal int Selected { get; set; }
 
     internal static bool CanRun(IMenuItem item) => item.IsEnabled && item.OnClicked != null;
 
-    internal void Move(int direction, bool includeBack)
+    internal void Move(int direction, bool includeBack, int extra = 0)
     {
         if (direction == 0)
             return;
@@ -120,6 +120,9 @@ internal sealed class MenuLevel
             if (CanRun(Items[i]))
                 choices.Add(i);
         }
+
+        for (var i = 0; i < extra; i++)
+            choices.Add(Items.Length + i);
 
         if (choices.Count == 0)
             return;

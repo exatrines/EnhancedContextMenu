@@ -12,7 +12,8 @@ namespace EnhancedContextMenu.Context;
 
 /// <summary>
 /// Takes Dalamud context entries off the game menu while it is being built.
-/// Entries that cannot be tracked or moved are put back on the game menu.
+/// SelectedItems is cleared so those entries are not copied onto the menu.
+/// The game's value buffer is only read. Entries that cannot be moved are put back.
 /// </summary>
 internal sealed unsafe class ContextCapture : IDisposable
 {

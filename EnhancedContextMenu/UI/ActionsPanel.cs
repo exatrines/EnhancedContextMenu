@@ -23,7 +23,10 @@ internal sealed class ActionsPanel
 
     internal void Draw()
     {
-        if (!_plugin.TryCopyLevel(out var level))
+        var hasLevel = _plugin.TryCopyLevel(out var level);
+        var nest = _plugin.TryCopyOmenNest(out var omenNest);
+        var omen = nest ? [] : _plugin.CopyOmenRows();
+        if (!hasLevel && omen.Length == 0 && !nest)
             return;
 
         if (!NativeContextMenu.TryGetAnchor(out var anchor))
@@ -71,7 +74,12 @@ internal sealed class ActionsPanel
             if (visible)
             {
                 ImGui.SetWindowFontScale(_fontScale);
-                DrawLevel(level);
+                if (nest)
+                    DrawOmenNest(omenNest);
+                else if (hasLevel)
+                    DrawLevel(level, level.Nested ? [] : omen);
+                else
+                    DrawOmenOnly(omen);
                 _lastSize = ImGui.GetWindowSize();
             }
         }
@@ -131,12 +139,12 @@ internal sealed class ActionsPanel
         _ => PanelDirection.Left,
     };
 
-    private void DrawLevel(PanelLevel level)
+    private void DrawLevel(PanelLevel level, OmenRow[] omen)
     {
         if (C.ShowHeader)
             DrawHeader(string.IsNullOrWhiteSpace(level.Title) ? I18n.Get("panel.title") : level.Title);
 
-        var width = Measure(level.Items);
+        var width = Measure(level.Items, omen);
         if (level.Nested && DrawBackRow(width, level.Focused && level.Selected == MenuLevel.BackRow))
             _plugin.Back();
         for (var i = 0; i < level.Items.Length; i++)
@@ -144,6 +152,38 @@ internal sealed class ActionsPanel
             var item = level.Items[i];
             if (DrawEntryRow(i, item, width, level.Focused && i == level.Selected))
                 _plugin.Execute(i);
+        }
+
+        DrawOmenRows(omen, width, level.Focused ? level.Selected - level.Items.Length : -1);
+    }
+
+    private void DrawOmenNest(OmenView view)
+    {
+        if (C.ShowHeader)
+            DrawHeader(string.IsNullOrWhiteSpace(view.Title) ? I18n.Get("panel.title") : view.Title);
+
+        var width = Measure([], view.Rows);
+        if (DrawBackRow(width, view.Focused && view.Selected == MenuLevel.BackRow))
+            _plugin.Back();
+
+        DrawOmenRows(view.Rows, width, view.Focused ? view.Selected : -1);
+    }
+
+    private void DrawOmenOnly(OmenRow[] omen)
+    {
+        if (C.ShowHeader)
+            DrawHeader(PluginServices.PluginInterface.Manifest.Name ?? "Enhanced Context Menu");
+
+        var width = Measure([], omen);
+        DrawOmenRows(omen, width, -1);
+    }
+
+    private void DrawOmenRows(OmenRow[] omen, float width, int selected)
+    {
+        for (var i = 0; i < omen.Length; i++)
+        {
+            if (DrawOmenRow(i, omen[i], width, i == selected))
+                _plugin.ActivateOmen(i);
         }
     }
 
@@ -155,7 +195,7 @@ internal sealed class ActionsPanel
         ImGui.Separator();
     }
 
-    private float Measure(IMenuItem[] items)
+    private float Measure(IMenuItem[] items, OmenRow[] omen)
     {
         var width = 200f * _fontScale;
         foreach (var item in items)
@@ -164,6 +204,13 @@ internal sealed class ActionsPanel
             var row = ImGui.CalcTextSize(text).X + 56f * _fontScale;
             if (row > width)
                 width = row;
+        }
+
+        foreach (var row in omen)
+        {
+            var rowWidth = ImGui.CalcTextSize(row.Text.TextValue).X + 56f * _fontScale;
+            if (rowWidth > width)
+                width = rowWidth;
         }
 
         return MathF.Min(width, 420f * _fontScale);
@@ -220,6 +267,41 @@ internal sealed class ActionsPanel
             DrawChevron(min, max, Packed(text, enabled ? 1f : 0.45f));
 
         return clicked && enabled;
+    }
+
+    private bool DrawOmenRow(int index, OmenRow row, float width, bool selected)
+    {
+        var height = ImGui.GetTextLineHeight() + 6f * _fontScale;
+        var pos = ImGui.GetCursorScreenPos();
+        var clicked = ImGui.InvisibleButton($"##ectx-omen-{index}", new Vector2(width, height));
+        if (selected)
+            ImGui.SetScrollHereY(0.5f);
+        var next = ImGui.GetCursorPos();
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        var active = (ImGui.IsItemHovered() || selected) && row.Enabled;
+        if (active)
+            ImGui.GetWindowDrawList().AddRectFilled(min, max, ImGui.GetColorU32(C.BackgroundActive));
+
+        var text = active ? C.TextActive : C.Text;
+        var shown = C.OverridePluginTextColor ? WithoutForeground(row.Text) : row.Text;
+        var style = new SeStringDrawParams
+        {
+            Opacity = row.Enabled ? 1f : 0.45f,
+            Color = ColorHelpers.RgbaVector4ToUint(text),
+            ScreenOffset = pos + new Vector2(6, 3) * _fontScale,
+            TargetDrawList = ImGui.GetWindowDrawList(),
+            Font = ImGui.GetFont(),
+            FontSize = ImGui.GetFontSize(),
+            Edge = false,
+            Shadow = false,
+        };
+        ImGuiHelpers.SeStringWrapped(shown.Encode(), style);
+        ImGui.SetCursorPos(next);
+        if (row.IsSubmenu)
+            DrawChevron(min, max, Packed(text, row.Enabled ? 1f : 0.45f));
+
+        return clicked && row.Enabled;
     }
 
     private void DrawChevron(Vector2 min, Vector2 max, uint color)

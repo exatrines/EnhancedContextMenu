@@ -76,6 +76,42 @@ internal static unsafe class NativeContextMenu
         if (nativeCount <= 0)
             return false;
 
+        if (!TryScanLists(out addonPtr, out var exact, nativeCount, out var sole, out var lists))
+            return false;
+
+        if (exact != null)
+        {
+            listPtr = (nint)exact;
+            return true;
+        }
+
+        // Extra rows from another plugin make the only list longer than the native count.
+        if (lists == 1 && sole != null && sole->ListLength > nativeCount)
+        {
+            listPtr = (nint)sole;
+            return true;
+        }
+
+        return false;
+    }
+
+    internal static void Close()
+    {
+        CloseOne("AddonContextSub");
+        CloseOne("ContextMenu");
+    }
+
+    private static bool TryScanLists(
+        out nint addonPtr,
+        out AtkComponentList* exact,
+        int exactLength,
+        out AtkComponentList* sole,
+        out int lists)
+    {
+        addonPtr = 0;
+        exact = null;
+        sole = null;
+        lists = 0;
         var handle = Find("ContextMenu");
         if (handle.IsNull || !handle.IsVisible)
             return false;
@@ -94,20 +130,13 @@ internal static unsafe class NativeContextMenu
                 continue;
 
             var list = (AtkComponentList*)component;
-            if (list->ListLength != nativeCount)
-                continue;
-
-            listPtr = (nint)list;
-            return true;
+            lists++;
+            sole = list;
+            if (list->ListLength == exactLength)
+                exact = list;
         }
 
-        return false;
-    }
-
-    internal static void Close()
-    {
-        CloseOne("AddonContextSub");
-        CloseOne("ContextMenu");
+        return true;
     }
 
     private static void CloseOne(string name)

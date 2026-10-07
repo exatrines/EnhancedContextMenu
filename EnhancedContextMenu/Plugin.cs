@@ -24,6 +24,7 @@ public sealed class Plugin : IDalamudPlugin
     private readonly object _sessionGate = new();
     private ContextCapture? _capture;
     private PadInput? _pad;
+    private OmenMenuBridge? _omen;
     private MenuSession? _session;
     private bool _faulted;
     private bool _executing;
@@ -77,6 +78,15 @@ public sealed class Plugin : IDalamudPlugin
         catch (Exception ex)
         {
             Fail(ex);
+        }
+
+        try
+        {
+            _omen = new OmenMenuBridge(gameInterop);
+        }
+        catch (Exception ex)
+        {
+            log.Warning(ex, "OmenTools context menu path is unavailable.");
         }
 
         pluginInterface.UiBuilder.Draw += Draw;
@@ -138,7 +148,14 @@ public sealed class Plugin : IDalamudPlugin
 
             _session = null;
         }
+
+        _omen?.Clear();
     }
+
+    private bool SessionAlive(MenuSession session) =>
+        NativeContextMenu.GameIsForeground()
+        && session.StillValid()
+        && session.PluginsStillLoaded();
 
     internal bool TryCopyLevel(out PanelLevel level)
     {
@@ -156,8 +173,27 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
+    internal OmenRow[] CopyOmenRows() => _omen?.CopyRows() ?? [];
+
+    internal bool TryCopyOmenNest(out OmenView view)
+    {
+        view = default;
+        if (_omen == null || !_omen.TryPeek(out var title, out var rows, out var selected))
+            return false;
+
+        var focused = false;
+        lock (_sessionGate)
+            focused = _session is { Focused: true };
+
+        view = new OmenView(title, rows, focused, selected);
+        return true;
+    }
+
     internal void Back()
     {
+        if (_omen?.Pop() == true)
+            return;
+
         lock (_sessionGate)
             _session?.Pop();
     }
@@ -268,10 +304,7 @@ public sealed class Plugin : IDalamudPlugin
         }
     }
 
-    private bool SessionAlive(MenuSession session) =>
-        NativeContextMenu.GameIsForeground()
-        && session.StillValid()
-        && session.PluginsStillLoaded();
+    internal void ActivateOmen(int index) => _omen?.Activate(index);
 
     internal void BindPadList()
     {
@@ -327,12 +360,19 @@ public sealed class Plugin : IDalamudPlugin
 
     internal void MovePad(int direction)
     {
+        if (_omen?.Nested == true)
+        {
+            _omen.Move(direction);
+            return;
+        }
+
         lock (_sessionGate)
         {
             if (_session is not { Focused: true } session)
                 return;
 
-            session.Move(direction);
+            var extra = session.Depth == 1 ? _omen?.Count ?? 0 : 0;
+            session.Move(direction, extra);
         }
     }
 
@@ -341,18 +381,41 @@ public sealed class Plugin : IDalamudPlugin
         if (!C.PadHorizontalNest)
             return;
 
+        if (_omen?.Nested == true)
+        {
+            _omen.OpenSelected();
+            _pad?.Boundary();
+            return;
+        }
+
         int index;
+        var omenIndex = -1;
         lock (_sessionGate)
         {
             if (_session is not { Focused: true } session)
                 return;
 
             index = session.Current.Selected;
-            if (index < 0 || index >= session.Current.Items.Length)
+            if (index < 0)
                 return;
 
-            if (!session.Current.Items[index].IsSubmenu)
+            if (index >= session.Current.Items.Length)
+            {
+                omenIndex = index - session.Current.Items.Length;
+            }
+            else if (!session.Current.Items[index].IsSubmenu)
+            {
                 return;
+            }
+        }
+
+        if (omenIndex >= 0)
+        {
+            if (_omen?.IsSubmenu(omenIndex) == true)
+                ActivateOmen(omenIndex);
+
+            _pad?.Boundary();
+            return;
         }
 
         Execute(index);
@@ -361,7 +424,15 @@ public sealed class Plugin : IDalamudPlugin
 
     internal void ConfirmPad()
     {
+        if (_omen?.Nested == true)
+        {
+            _omen.Confirm();
+            _pad?.Boundary();
+            return;
+        }
+
         int index;
+        var omenIndex = -1;
         lock (_sessionGate)
         {
             if (_session is not { Focused: true } session)
@@ -374,6 +445,16 @@ public sealed class Plugin : IDalamudPlugin
                     session.Pop();
                 return;
             }
+
+            if (index >= session.Current.Items.Length)
+                omenIndex = index - session.Current.Items.Length;
+        }
+
+        if (omenIndex >= 0)
+        {
+            ActivateOmen(omenIndex);
+            _pad?.Boundary();
+            return;
         }
 
         Execute(index);
@@ -382,6 +463,12 @@ public sealed class Plugin : IDalamudPlugin
 
     internal void BackPad()
     {
+        if (_omen?.Pop() == true)
+        {
+            _pad?.Boundary();
+            return;
+        }
+
         lock (_sessionGate)
         {
             if (_session == null)
@@ -413,6 +500,8 @@ public sealed class Plugin : IDalamudPlugin
         _pad = null;
         _capture?.Dispose();
         _capture = null;
+        _omen?.Dispose();
+        _omen = null;
 
         C.Save();
         MirageUi.Dispose();
@@ -442,6 +531,7 @@ public sealed class Plugin : IDalamudPlugin
     private void OnFrameworkUpdate(IFramework framework)
     {
         _pad?.Tick();
+        _omen?.Tick();
 
         MenuSession? session;
         lock (_sessionGate)
